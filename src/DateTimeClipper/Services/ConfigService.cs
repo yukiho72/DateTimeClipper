@@ -48,7 +48,8 @@ public class ConfigService
         }
     }
 
-    /// <summary>手編集などで文字列プロパティが null/空になったファイルは「壊れている」とみなす。</summary>
+    /// <summary>手編集などで文字列プロパティが null/空になったファイルは「壊れている」とみなす。
+    /// DateFormat/TimeFormat は空が正当な値（行の非表示）のため対象外。</summary>
     private static bool HasInvalidStrings(AppConfig c) =>
         string.IsNullOrEmpty(c.FontFamily) ||
         string.IsNullOrEmpty(c.TextColor) ||
@@ -74,9 +75,10 @@ public class ConfigService
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
             File.WriteAllText(_path, JsonSerializer.Serialize(config, Options));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
         {
             // 保存失敗で常駐アプリを落とさない。次回の保存で回復する
+            // （ディレクトリ部分のないパスでは CreateDirectory が ArgumentException を投げるため含める）
         }
     }
 }

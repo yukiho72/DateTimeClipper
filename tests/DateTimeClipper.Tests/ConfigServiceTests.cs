@@ -63,4 +63,20 @@ public class ConfigServiceTests : IDisposable
         Assert.Equal("Yu Gothic UI", config.FontFamily);
         Assert.True(File.Exists(_path + ".bak"));
     }
+
+    [Fact]
+    public void ディレクトリ部分のないパスでもSaveは例外を投げない()
+    {
+        const string bareName = "config.json";
+        try
+        {
+            // 例外にならないことだけが検証対象
+            new ConfigService(bareName).Save(new AppConfig());
+        }
+        finally
+        {
+            // カレントディレクトリに書けてしまった場合の後始末
+            if (File.Exists(bareName)) File.Delete(bareName);
+        }
+    }
 }
