@@ -4,7 +4,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <!-- SettingsWindow など WPF の Window を参照する統合テストのため -->
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- UseWPF有効化でWindowsデスクトップSDKの暗黙using集合に切り替わり
+         System.IO等が外れるため、従来通り使えるよう明示的に復元する -->
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.6.2" />

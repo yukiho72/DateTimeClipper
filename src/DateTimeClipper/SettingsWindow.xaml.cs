@@ -26,9 +26,12 @@ public partial class SettingsWindow : Window
 
     public SettingsWindow(AppConfig config)
     {
-        InitializeComponent();
+        // _loading は InitializeComponent より前に立てる。XAMLパース中に
+        // Slider の Minimum 補正等で ValueChanged 等のハンドラが発火するため、
+        // フラグが未設定だと _config(null) を触って NRE になる
         _config = config;
         _loading = true;
+        InitializeComponent();
 
         // 時計タブ
         var modeButton = config.DisplayMode switch
