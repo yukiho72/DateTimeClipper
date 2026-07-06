@@ -1,11 +1,247 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
+using DateTimeClipper.Models;
+using DateTimeClipper.Services;
 
 namespace DateTimeClipper;
 
 public partial class MainWindow : Window
 {
+    private readonly AppConfig _config;
+    private readonly ConfigService _configService;
+    private readonly DispatcherTimer _clockTimer;
+    private readonly DispatcherTimer _saveTimer;
+    private SettingsWindow? _settingsWindow;
+    private CopyPopup? _popup;
+
+    /// <summary>トレイの「終了」からのみ true にする。false の間は Close が非表示になる。</summary>
+    internal bool AllowClose { get; set; }
+
+    internal AppConfig Config => _config;
+
     public MainWindow()
     {
         InitializeComponent();
+        _configService = new ConfigService(ConfigService.DefaultPath);
+        _config = _configService.Load();
+        Left = _config.WindowLeft;
+        Top = _config.WindowTop;
+        Width = _config.WindowWidth;
+        Height = _config.WindowHeight;
+
+        // 保存はデバウンス(スライダードラッグ中の連続書き込みを避ける)。見た目の反映は即時
+        _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _saveTimer.Tick += (_, _) =>
+        {
+            _saveTimer.Stop();
+            _configService.Save(_config);
+        };
+        _config.PropertyChanged += (_, _) => OnConfigChanged();
+        _config.CopyItems.CollectionChanged += (_, _) => ScheduleSave();
+
+        _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _clockTimer.Tick += (_, _) => UpdateClock();
+        _clockTimer.Start();
+
+        ApplyConfig();
+        UpdateClock();
+    }
+
+    private void OnConfigChanged()
+    {
+        ApplyConfig();
+        UpdateClock();
+        ScheduleSave();
+    }
+
+    private void ScheduleSave()
+    {
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    /// <summary>AppConfig の内容を画面に反映する（毎秒の時刻更新以外のすべて）。</summary>
+    private void ApplyConfig()
+    {
+        Topmost = _config.Topmost;
+
+        var bg = ColorUtil.ParseOrDefault(_config.BackgroundColor, Colors.Black);
+        // 完全に透明(アルファ0)のピクセルはOSレベルでクリック透過になり
+        // ドラッグ移動できなくなるため、不透明度は最低1%を確保する
+        RootBorder.Background = new SolidColorBrush(bg)
+        {
+            Opacity = Math.Max(_config.BackgroundOpacity, 0.01),
+        };
+
+        var textBrush = new SolidColorBrush(ColorUtil.ParseOrDefault(_config.TextColor, Colors.White))
+        {
+            Opacity = _config.TextOpacity,
+        };
+        DateText.Foreground = textBrush;
+        TimeText.Foreground = textBrush;
+        DateText.FontFamily = new FontFamily(_config.FontFamily);
+        TimeText.FontFamily = new FontFamily(_config.FontFamily);
+        DateText.FontSize = _config.FontSize;
+        TimeText.FontSize = _config.FontSize;
+        RootBorder.ContextMenu.FontSize = _config.FontSize;
+
+        Analog.ClockBrush = new SolidColorBrush(ColorUtil.ParseOrDefault(_config.ClockColor, Colors.White))
+        {
+            Opacity = _config.ClockOpacity,
+        };
+        Analog.ShowSeconds = _config.ShowSecondsHand;
+
+        bool showAnalog = _config.DisplayMode != ClockDisplayMode.Digital;
+        bool showDigital = _config.DisplayMode != ClockDisplayMode.Analog;
+        Analog.Visibility = showAnalog ? Visibility.Visible : Visibility.Collapsed;
+        DigitalPanel.Visibility = showDigital ? Visibility.Visible : Visibility.Collapsed;
+        AnalogColumn.Width = showAnalog ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        DigitalColumn.Width = showDigital ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+        DateText.Visibility = string.IsNullOrWhiteSpace(_config.DateFormat)
+            ? Visibility.Collapsed : Visibility.Visible;
+        TimeText.Visibility = string.IsNullOrWhiteSpace(_config.TimeFormat)
+            ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void UpdateClock()
+    {
+        var now = DateTime.Now;
+        Analog.Time = now;
+        DateText.Text = SafeFormat(_config.DateFormat, now);
+        TimeText.Text = SafeFormat(_config.TimeFormat, now);
+    }
+
+    private static string SafeFormat(string format, DateTime now)
+    {
+        if (string.IsNullOrWhiteSpace(format)) return "";
+        try
+        {
+            return TemplateExpander.Format(format, now);
+        }
+        catch (FormatException)
+        {
+            return "(書式エラー)";
+        }
+    }
+
+    // ---- クリック／ドラッグ判定 ----
+
+    private void OnBorderMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState != MouseButtonState.Pressed || IsOnInteractiveElement(e.OriginalSource))
+            return;
+
+        // DragMove はボタンが離されるまでブロックする。移動していなければクリックとみなす
+        var beforeLeft = Left;
+        var beforeTop = Top;
+        DragMove();
+        bool moved = Math.Abs(Left - beforeLeft) > 3 || Math.Abs(Top - beforeTop) > 3;
+        if (moved)
+        {
+            _config.WindowLeft = Left;
+            _config.WindowTop = Top;
+        }
+        else
+        {
+            ShowCopyPopup();
+        }
+    }
+
+    private static bool IsOnInteractiveElement(object source)
+    {
+        var d = source as DependencyObject;
+        while (d != null)
+        {
+            if (d is Button or ScrollBar) return true;
+            d = d is Visual ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        }
+        return false;
+    }
+
+    private void ShowCopyPopup()
+    {
+        if (_popup is { IsLoaded: true })
+        {
+            _popup.Close();
+            return;
+        }
+        _popup = new CopyPopup(_config) { Owner = this };
+        _popup.Show();
+        // SizeToContent のため ActualWidth は Show 後に確定する。右横→はみ出すなら左横
+        _popup.Top = Top;
+        _popup.Left = Left + Width + 8;
+        if (_popup.Left + _popup.ActualWidth > SystemParameters.WorkArea.Right)
+        {
+            _popup.Left = Left - _popup.ActualWidth - 8;
+        }
+        _popup.Activate();
+    }
+
+    // ---- メニュー・ボタン ----
+
+    internal void OpenSettings()
+    {
+        if (_settingsWindow is { IsLoaded: true })
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new SettingsWindow(_config) { Owner = this };
+        // 本体の右横に表示。画面右端からはみ出す場合は左横に出す
+        _settingsWindow.Left = Left + Width + 8;
+        _settingsWindow.Top = Top;
+        if (_settingsWindow.Left + _settingsWindow.Width > SystemParameters.WorkArea.Right)
+        {
+            _settingsWindow.Left = Left - _settingsWindow.Width - 8;
+        }
+        _settingsWindow.Show();
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => OpenSettings();
+
+    private void OnHideClick(object sender, RoutedEventArgs e) => Hide();
+
+    private void OnExitClick(object sender, RoutedEventArgs e)
+    {
+        AllowClose = true;
+        Close();
+        Application.Current.Shutdown();
+    }
+
+    private void OnMouseEnterWindow(object sender, MouseEventArgs e) => AnimateButtons(1);
+
+    private void OnMouseLeaveWindow(object sender, MouseEventArgs e) => AnimateButtons(0);
+
+    private void AnimateButtons(double to) =>
+        HoverButtons.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(to, TimeSpan.FromMilliseconds(150)));
+
+    // ---- 常駐動作 ----
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!AllowClose)
+        {
+            // Alt+F4 等では終了せず、トレイ常駐のまま隠れる
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        _saveTimer.Stop();
+        _clockTimer.Stop();
+        _config.WindowLeft = Left;
+        _config.WindowTop = Top;
+        _config.WindowWidth = Width;
+        _config.WindowHeight = Height;
+        _configService.Save(_config);
+        base.OnClosing(e);
     }
 }
