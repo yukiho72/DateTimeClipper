@@ -32,6 +32,7 @@ public class ConfigServiceTests : IDisposable
         var config = new AppConfig
         {
             DisplayMode = ClockDisplayMode.Analog,
+            ClickThrough = true,
             FontSize = 22,
             ClockOpacity = 0.4,
         };
@@ -40,6 +41,7 @@ public class ConfigServiceTests : IDisposable
 
         var loaded = service.Load();
         Assert.Equal(ClockDisplayMode.Analog, loaded.DisplayMode);
+        Assert.True(loaded.ClickThrough);
         Assert.Equal(22, loaded.FontSize);
         Assert.Equal(0.4, loaded.ClockOpacity);
         Assert.Contains("{HH:mm}", loaded.CopyItems);

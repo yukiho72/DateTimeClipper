@@ -28,6 +28,8 @@
                           Checked="OnSecondsChanged" Unchecked="OnSecondsChanged"/>
                 <CheckBox x:Name="TopmostCheck" Content="常に最前面に表示" Margin="0,8,0,0"
                           Checked="OnTopmostChanged" Unchecked="OnTopmostChanged"/>
+                <CheckBox x:Name="ClickThroughCheck" Content="クリックを透過する" Margin="0,8,0,0"
+                          Checked="OnClickThroughChanged" Unchecked="OnClickThroughChanged"/>
             </StackPanel>
         </TabItem>
 

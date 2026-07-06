@@ -38,6 +38,20 @@ public partial class App : Application
             main.Show();
             main.OpenSettings();
         });
+        var clickThroughItem = new System.Windows.Forms.ToolStripMenuItem("クリックを透過する(&P)")
+        {
+            CheckOnClick = true,
+            Checked = main.Config.ClickThrough,
+        };
+        clickThroughItem.Click += (_, _) =>
+        {
+            main.Config.ClickThrough = clickThroughItem.Checked;
+        };
+        menu.Items.Add(clickThroughItem);
+        menu.Opening += (_, _) =>
+        {
+            clickThroughItem.Checked = main.Config.ClickThrough;
+        };
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add("終了(&X)", null, (_, _) =>
         {

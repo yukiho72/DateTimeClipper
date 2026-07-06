@@ -1,9 +1,11 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -14,12 +16,16 @@ namespace DateTimeClipper;
 
 public partial class MainWindow : Window
 {
+    private const int GwlExstyle = -20;
+    private const int WsExTransparent = 0x00000020;
+
     private readonly AppConfig _config;
     private readonly ConfigService _configService;
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _saveTimer;
     private SettingsWindow? _settingsWindow;
     private CopyPopup? _popup;
+    private bool _sourceInitialized;
 
     /// <summary>トレイの「終了」からのみ true にする。false の間は Close が非表示になる。</summary>
     internal bool AllowClose { get; set; }
@@ -29,6 +35,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) =>
+        {
+            _sourceInitialized = true;
+            ApplyClickThrough();
+        };
         _configService = new ConfigService(ConfigService.DefaultPath);
         _config = _configService.Load();
         Left = _config.WindowLeft;
@@ -71,6 +82,7 @@ public partial class MainWindow : Window
     private void ApplyConfig()
     {
         Topmost = _config.Topmost;
+        ApplyClickThrough();
 
         var bg = ColorUtil.ParseOrDefault(_config.BackgroundColor, Colors.Black);
         // 完全に透明(アルファ0)のピクセルはOSレベルでクリック透過になり
@@ -109,6 +121,22 @@ public partial class MainWindow : Window
             ? Visibility.Collapsed : Visibility.Visible;
         TimeText.Visibility = string.IsNullOrWhiteSpace(_config.TimeFormat)
             ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void ApplyClickThrough()
+    {
+        if (!_sourceInitialized) return;
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        var style = GetWindowLongPtr(hwnd, GwlExstyle);
+        var nextStyle = _config.ClickThrough
+            ? style.ToInt64() | WsExTransparent
+            : style.ToInt64() & ~WsExTransparent;
+        if (nextStyle == style.ToInt64()) return;
+
+        SetWindowLongPtr(hwnd, GwlExstyle, new IntPtr(nextStyle));
     }
 
     private void UpdateClock()
@@ -244,4 +272,26 @@ public partial class MainWindow : Window
         _configService.Save(_config);
         base.OnClosing(e);
     }
+
+    private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) =>
+        IntPtr.Size == 8
+            ? GetWindowLongPtr64(hWnd, nIndex)
+            : new IntPtr(GetWindowLong32(hWnd, nIndex));
+
+    private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong) =>
+        IntPtr.Size == 8
+            ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong)
+            : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+    private static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+    private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
+    private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+    private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 }

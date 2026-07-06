@@ -45,6 +45,7 @@ public partial class SettingsWindow : Window
         TimeFormatBox.Text = config.TimeFormat;
         SecondsCheck.IsChecked = config.ShowSecondsHand;
         TopmostCheck.IsChecked = config.Topmost;
+        ClickThroughCheck.IsChecked = config.ClickThrough;
 
         // 外観タブ
         FontBox.ItemsSource = Fonts.SystemFontFamilies.Select(f => f.Source).OrderBy(s => s).ToList();
@@ -146,6 +147,12 @@ public partial class SettingsWindow : Window
     {
         if (_loading) return;
         _config.Topmost = TopmostCheck.IsChecked == true;
+    }
+
+    private void OnClickThroughChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _config.ClickThrough = ClickThroughCheck.IsChecked == true;
     }
 
     // ---- 外観タブ ----

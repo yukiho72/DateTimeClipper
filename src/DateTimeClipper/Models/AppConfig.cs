@@ -21,6 +21,7 @@ public class AppConfig : INotifyPropertyChanged
     private string _timeFormat = "HH:mm:ss";
     private bool _showSecondsHand = true;
     private bool _topmost = true;
+    private bool _clickThrough;
     private string _fontFamily = "Yu Gothic UI";
     private double _fontSize = 14;
     private string _textColor = "#F0F0F0";
@@ -41,6 +42,7 @@ public class AppConfig : INotifyPropertyChanged
     public string TimeFormat { get => _timeFormat; set => Set(ref _timeFormat, value); }
     public bool ShowSecondsHand { get => _showSecondsHand; set => Set(ref _showSecondsHand, value); }
     public bool Topmost { get => _topmost; set => Set(ref _topmost, value); }
+    public bool ClickThrough { get => _clickThrough; set => Set(ref _clickThrough, value); }
     public string FontFamily { get => _fontFamily; set => Set(ref _fontFamily, value); }
     public double FontSize { get => _fontSize; set => Set(ref _fontSize, value); }
     public string TextColor { get => _textColor; set => Set(ref _textColor, value); }
