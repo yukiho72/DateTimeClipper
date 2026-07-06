@@ -53,4 +53,21 @@ public class TemplateExpanderTests
     public void Expand_和暦キーワードをテンプレート内で使える()
         => Assert.Equal("令和8年7月6日の議事録",
             TemplateExpander.Expand("{Wareki}の議事録", TestDate));
+
+    [Fact]
+    public void Format_KindがUtcのDateTimeでも例外にならない()
+    {
+        var utc = DateTime.SpecifyKind(new DateTime(2026, 7, 6, 1, 8, 45), DateTimeKind.Utc);
+        Assert.Equal("20260706", TemplateExpander.Format("yyyyMMdd", utc));
+    }
+
+    [Fact]
+    public void Format_Wareki_和暦範囲外は西暦フォールバック()
+        => Assert.Equal("1800年1月1日",
+            TemplateExpander.Format("Wareki", new DateTimeOffset(1800, 1, 1, 0, 0, 0, TimeSpan.FromHours(9))));
+
+    [Fact]
+    public void Format_WarekiShort_和暦範囲外は西暦フォールバック()
+        => Assert.Equal("1800/1/1",
+            TemplateExpander.Format("WarekiShort", new DateTimeOffset(1800, 1, 1, 0, 0, 0, TimeSpan.FromHours(9))));
 }
