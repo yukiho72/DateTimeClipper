@@ -243,14 +243,36 @@ public partial class MainWindow : Window
         }
         _popup = new CopyPopup(_config) { Owner = this };
         _popup.Show();
-        // SizeToContent のため ActualWidth は Show 後に確定する。右横→はみ出すなら左横
-        _popup.Top = Top;
-        _popup.Left = Left + Width + 8;
-        if (_popup.Left + _popup.ActualWidth > SystemParameters.WorkArea.Right)
-        {
-            _popup.Left = Left - _popup.ActualWidth - 8;
-        }
+        // SizeToContent のため実サイズは Show 後に確定する
+        var (left, top) = PlacePopup(Left, Top, Width,
+            _popup.ActualWidth, _popup.ActualHeight, SystemParameters.WorkArea);
+        _popup.Left = left;
+        _popup.Top = top;
         _popup.Activate();
+    }
+
+    /// <summary>
+    /// コピー一覧ポップアップの表示位置を決める。既定は時計の右横、右にはみ出すなら左横。
+    /// 縦は時計の上端に合わせ、下（や上）にはみ出す場合は作業領域内へ詰める。
+    /// </summary>
+    public static (double Left, double Top) PlacePopup(
+        double clockLeft, double clockTop, double clockWidth,
+        double popupWidth, double popupHeight, Rect workArea)
+    {
+        const double gap = 8;
+
+        double left = clockLeft + clockWidth + gap;
+        if (left + popupWidth > workArea.Right)
+            left = clockLeft - popupWidth - gap; // 右に入らなければ左横へ
+        left = Math.Clamp(left, workArea.Left,
+            Math.Max(workArea.Left, workArea.Right - popupWidth));
+
+        double top = clockTop;
+        if (top + popupHeight > workArea.Bottom)
+            top = workArea.Bottom - popupHeight; // 下にはみ出すなら上へ詰める
+        top = Math.Max(top, workArea.Top);
+
+        return (left, top);
     }
 
     // ---- メニュー・ボタン ----
