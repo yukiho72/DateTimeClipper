@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -18,6 +19,11 @@ public partial class MainWindow : Window
 {
     private const int GwlExstyle = -20;
     private const int WsExTransparent = 0x00000020;
+    private const int WsExTopmost = 0x00000008;
+    private static readonly IntPtr HwndTopmost = new(-1);
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoActivate = 0x0010;
 
     private readonly AppConfig _config;
     private readonly ConfigService _configService;
@@ -58,11 +64,45 @@ public partial class MainWindow : Window
         _config.CopyItems.CollectionChanged += (_, _) => ScheduleSave();
 
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _clockTimer.Tick += (_, _) => UpdateClock();
+        _clockTimer.Tick += (_, _) =>
+        {
+            UpdateClock();
+            // WPFのTopmostは他アプリの最前面ウィンドウ・解像度変更・セッション復帰等で
+            // OS側の最前面フラグを失うことがあるため、毎秒監視して失われていたら復帰する
+            EnsureTopmost();
+        };
         _clockTimer.Start();
+
+        // 画面構成変更・ロック解除/セッション切替の直後は最前面が外れやすいので即復帰
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
 
         ApplyConfig();
         UpdateClock();
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(EnsureTopmost);
+
+    private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e) =>
+        Dispatcher.BeginInvoke(EnsureTopmost);
+
+    /// <summary>設定が最前面ONで、かつOSの最前面フラグが失われているときだけ再アサートすべき。</summary>
+    public static bool ShouldReassertTopmost(bool configTopmost, long exStyle) =>
+        configTopmost && (exStyle & WsExTopmost) == 0;
+
+    /// <summary>最前面が失われていたら、フォーカスを奪わずに最前面へ復帰させる。</summary>
+    private void EnsureTopmost()
+    {
+        if (!_sourceInitialized || !_config.Topmost) return;
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        var exStyle = GetWindowLongPtr(hwnd, GwlExstyle).ToInt64();
+        if (!ShouldReassertTopmost(_config.Topmost, exStyle)) return;
+
+        SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
     }
 
     private void OnConfigChanged()
@@ -265,6 +305,8 @@ public partial class MainWindow : Window
         }
         _saveTimer.Stop();
         _clockTimer.Stop();
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
         _config.WindowLeft = Left;
         _config.WindowTop = Top;
         _config.WindowWidth = Width;
@@ -294,4 +336,9 @@ public partial class MainWindow : Window
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
     private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 }
