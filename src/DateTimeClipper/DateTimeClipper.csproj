@@ -8,6 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DateTimeClipper</RootNamespace>
     <AssemblyName>DateTimeClipper</AssemblyName>
+    <!-- マルチモニタでメニュー/ポップアップが正しいモニタに出るようPerMonitorV2を宣言 -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <!-- NotifyIconのためにWinForms参照は必要だが、implicit usingsの
