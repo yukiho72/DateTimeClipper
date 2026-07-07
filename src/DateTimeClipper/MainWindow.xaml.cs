@@ -243,12 +243,28 @@ public partial class MainWindow : Window
         }
         _popup = new CopyPopup(_config) { Owner = this };
         _popup.Show();
-        // SizeToContent のため実サイズは Show 後に確定する
+        // SizeToContent のため実サイズは Show 後に確定する。
+        // 主モニタ固定ではなく時計のあるモニタの作業領域を使う（マルチモニタ対応）
         var (left, top) = PlacePopup(Left, Top, Width,
-            _popup.ActualWidth, _popup.ActualHeight, SystemParameters.WorkArea);
+            _popup.ActualWidth, _popup.ActualHeight, CurrentMonitorWorkArea());
         _popup.Left = left;
         _popup.Top = top;
         _popup.Activate();
+    }
+
+    /// <summary>時計が今表示されているモニタの作業領域をWPF(DIP)座標で返す。取得不能時は主モニタ。</summary>
+    private Rect CurrentMonitorWorkArea()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var source = PresentationSource.FromVisual(this);
+        if (hwnd == IntPtr.Zero || source?.CompositionTarget is null)
+            return SystemParameters.WorkArea;
+
+        var wa = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea; // 物理px
+        var toDip = source.CompositionTarget.TransformFromDevice;          // 物理px→DIP(スケールのみ)
+        var topLeft = toDip.Transform(new Point(wa.Left, wa.Top));
+        var bottomRight = toDip.Transform(new Point(wa.Right, wa.Bottom));
+        return new Rect(topLeft, bottomRight);
     }
 
     /// <summary>
@@ -285,10 +301,11 @@ public partial class MainWindow : Window
             return;
         }
         _settingsWindow = new SettingsWindow(_config) { Owner = this };
-        // 本体の右横に表示。画面右端からはみ出す場合は左横に出す
+        // 本体の右横に表示。時計のあるモニタの右端からはみ出す場合は左横に出す
+        var wa = CurrentMonitorWorkArea();
         _settingsWindow.Left = Left + Width + 8;
         _settingsWindow.Top = Top;
-        if (_settingsWindow.Left + _settingsWindow.Width > SystemParameters.WorkArea.Right)
+        if (_settingsWindow.Left + _settingsWindow.Width > wa.Right)
         {
             _settingsWindow.Left = Left - _settingsWindow.Width - 8;
         }
