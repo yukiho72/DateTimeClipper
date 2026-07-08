@@ -80,10 +80,12 @@ public partial class App : Application
         {
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.FromArgb(30, 30, 40));
-            using var pen = new System.Drawing.Pen(System.Drawing.Color.White, 1.5f);
-            g.DrawEllipse(pen, 1, 1, 13, 13);
-            g.DrawLine(pen, 8, 8, 8, 4);    // 分針（12時方向）
-            g.DrawLine(pen, 8, 8, 11, 8);   // 時針（3時方向）
+            // 時計の色は memo3 のアイコンに合わせた黄色(#FFFF00)
+            using var rimPen = new System.Drawing.Pen(System.Drawing.Color.Yellow, 2.5f);
+            using var handPen = new System.Drawing.Pen(System.Drawing.Color.Yellow, 1.5f);
+            g.DrawEllipse(rimPen, 2, 2, 12, 12);
+            g.DrawLine(handPen, 8, 8, 8, 4);    // 分針（12時方向）
+            g.DrawLine(handPen, 8, 8, 11, 8);   // 時針（3時方向）
         }
         return System.Drawing.Icon.FromHandle(bmp.GetHicon());
     }
