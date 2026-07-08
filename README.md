@@ -3,7 +3,7 @@
 アナログ時計・デジタル時計をデスクトップに常駐表示し、クリックひとつで日付や定型文字列をクリップボードへコピーできる Windows 用の常駐アプリです。
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 - **時計**: アナログ / デジタル / 両方（横並び）を切り替え表示。枠なしの浮遊ウィンドウ。
@@ -31,7 +31,7 @@
 ## 動作環境
 
 - Windows 10 / 11
-- [.NET 8 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/8.0)（自己完結型の配布物を使う場合は不要）
+- [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（自己完結型の配布物を使う場合は不要）
 
 ## インストール
 
@@ -88,7 +88,7 @@
 
 ```powershell
 dotnet build -c Release
-.\src\DateTimeClipper\bin\Release\net8.0-windows\DateTimeClipper.exe
+.\src\DateTimeClipper\bin\Release\net10.0-windows\DateTimeClipper.exe
 ```
 
 ### テスト
@@ -99,7 +99,7 @@ dotnet test
 
 ## 使用技術
 
-C# / .NET 8 / WPF（コードビハインド方式）。タスクトレイは Windows Forms の `NotifyIcon` を利用。設定は `System.Text.Json` で保存。
+C# / .NET 10 / WPF（コードビハインド方式）。タスクトレイは Windows Forms の `NotifyIcon` を利用。設定は `System.Text.Json` で保存。
 
 ## ライセンス
 

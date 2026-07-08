@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
@@ -10,6 +10,9 @@
     <AssemblyName>DateTimeClipper</AssemblyName>
     <!-- マルチモニタでメニュー/ポップアップが正しいモニタに出るようPerMonitorV2を宣言 -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 本アプリは実体がWPFで、DPI認識はWPFのためにmanifestで宣言する必要がある。
+         WinFormsアナライザーのWFO0003(manifestでなくWinForms APIで設定せよ)は当てはまらないため抑制 -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <!-- NotifyIconのためにWinForms参照は必要だが、implicit usingsの
