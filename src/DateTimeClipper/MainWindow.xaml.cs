@@ -77,8 +77,20 @@ public partial class MainWindow : Window
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         SystemEvents.SessionSwitch += OnSessionSwitch;
 
+        // リサイズのたびにサイズを保存する。これをしないとトレイの「終了」以外
+        // (PC再起動・シャットダウン等)でサイズが保存されず、次回起動時に前回サイズへ戻る
+        SizeChanged += (_, _) => PersistWindowSize();
+
         ApplyConfig();
         UpdateClock();
+    }
+
+    /// <summary>現在のウィンドウサイズを設定へ反映する（保存はデバウンス）。</summary>
+    private void PersistWindowSize()
+    {
+        if (double.IsNaN(Width) || double.IsNaN(Height)) return;
+        _config.WindowWidth = Width;
+        _config.WindowHeight = Height;
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
